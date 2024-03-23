@@ -2,13 +2,24 @@
 name = "simpleopentranslator"
 version = "0.1.0"
 description = ""
-authors = ["adam <adam.wk@outlook.com>"]
+authors = ["Your Name <you@example.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.10"
 fastapi = "^0.110.0"
-uvicorn = "^0.28.0"
+uvicorn = "^0.29.0"
+torch = "^2.2.1"
+torchvision = "^0.17.1"
+torchaudio = "^2.2.1"
+lingua-language-detector = "^2.0.2"
+transformers = "^4.39.1"
+sentencepiece = "^0.2.0"
+accelerate = "^0.28.0"
+protobuf = "^5.26.0"
+datasets = "^2.18.0"
+peft = "^0.10.0"
+evaluate = "^0.4.1"
 
 
 [build-system]
