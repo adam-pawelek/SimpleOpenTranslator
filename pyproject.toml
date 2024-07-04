@@ -9,8 +9,6 @@ readme = "README.md"
 python = "^3.10"
 fastapi = "^0.110.0"
 uvicorn = "^0.29.0"
-torch = "^2.2.1"
-torchvision = "^0.17.1"
 torchaudio = "^2.2.1"
 lingua-language-detector = "^2.0.2"
 transformers = "^4.39.1"
@@ -20,7 +18,15 @@ protobuf = "^5.26.0"
 datasets = "^2.18.0"
 peft = "^0.10.0"
 evaluate = "^0.4.1"
+numpy = "^2.0.0"
+torch = {version = "^2.3.1+cu121", source = "pytorch-gpu"}
+torchvision = {version = "^0.18.1+cu121", source = "pytorch-gpu"}
 
+
+[[tool.poetry.source]]
+name = "pytorch-gpu"
+url = "https://download.pytorch.org/whl/cu121"
+priority = "explicit"
 
 [build-system]
 requires = ["poetry-core"]
