@@ -1,28 +1,41 @@
 import re
 
+import torch
 from transformers import MBartForConditionalGeneration, MBart50TokenizerFast
 
 from utils.simple_language_detector import one_language_auto_detect
 
-
-def translate_text_one_language(text, lang=None):
-    if lang is None:
-        lang, detection_probability = one_language_auto_detect(text)
+from utils.const_var import iso639_3_to_bert_language, languages_available_in_bert_iso639_3_set
 
 
+def translate_text_one_language(text, to_lang:str, src_lang=None):
+    if src_lang is None:
+        src_lang, detection_probability = one_language_auto_detect(text)
+        src_lang, confidence_level = one_language_auto_detect(text)
+        src_lang = src_lang.iso_code_639_3.name.lower()
+
+    if BertTranslator.check_if_contain_language(src_lang):
+        bertTranslator = BertTranslator()
+        return bertTranslator.translate(text,to_lang, src_lang)
+
+    return
 
 
 
 
 class Translator:
     def __init__(self):
-        self.max_tokens = None
+        self.max_length = None
         self.word_token_multiply =  None
 
     def translate(self, text, to_lang, from_lang):
         raise NotImplementedError("Subclass must implement abstract method")
 
     def translate_chunk_of_text(self, text_chunk, to_lang="en_XX", src_lang="pl_PL"):
+        raise NotImplementedError("Subclass must implement abstract method")
+
+    @classmethod
+    def check_if_contain_language(self, lang):  # ISO 639-3
         raise NotImplementedError("Subclass must implement abstract method")
 
     def split_text_to_chunks(self, text):
@@ -32,7 +45,7 @@ class Translator:
         last_index = 0
         chunks_of_text = []
 
-        max_length = int(self.word_token_multiply * self.max_tokens)
+        max_length = int(self.word_token_multiply * self.max_length)
 
         for index, word in enumerate(splited_text):
             if "," in word:
@@ -69,17 +82,29 @@ class Translator:
 class BertTranslator(Translator):
 
     def __init__(self):
-        self.max_tokens = 512
         self.word_token_multiply =  1/10
-        self.model = MBartForConditionalGeneration.from_pretrained("facebook/mbart-large-50-many-to-many-mmt")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = MBartForConditionalGeneration.from_pretrained("facebook/mbart-large-50-many-to-many-mmt").to(self.device)
+        self.max_length = self.model.config.max_length
         self.tokenizer = MBart50TokenizerFast.from_pretrained("facebook/mbart-large-50-many-to-many-mmt")
 
+    @classmethod
+    def check_if_contain_language(self, lang: str) -> bool:  #ISO 639-3
+        return lang in languages_available_in_bert_iso639_3_set
+
+    @classmethod
+    def change_iso_639_3_to_bert_format(self,lang):
+        return iso639_3_to_bert_language[lang]
 
 
 
-    def translate(self, text, to_lang ="en_XX", src_lang ="pl_PL"):
+    def translate(self, text, to_lang ="eng", src_lang =None): #ISO 639-3
         if src_lang is None:
-            src_lang = one_language_auto_detect(text)
+            src_lang, confidence_level = one_language_auto_detect(text)
+            src_lang = src_lang.iso_code_639_3.name.lower()
+
+        src_lang = self.change_iso_639_3_to_bert_format(src_lang)
+        to_lang = self.change_iso_639_3_to_bert_format(to_lang)
         text_chunks = self.split_text_to_chunks(text)
         print(text_chunks)
         translated_list = []
@@ -96,9 +121,9 @@ class BertTranslator(Translator):
 
     def translate_chunk_of_text(self, text_chunk, to_lang ="en_XX", src_lang = "pl_PL"):
         self.tokenizer.src_lang = src_lang
-        encoded_hi = self.tokenizer(text_chunk, return_tensors="pt")
+        encoded_pl = self.tokenizer(text_chunk, return_tensors="pt", truncation=True, padding=True, max_length=self.max_length).to(self.device)
         generated_tokens = self.model.generate(
-            **encoded_hi,
+            **encoded_pl,
             forced_bos_token_id=self.tokenizer.lang_code_to_id[to_lang]
         )
         return self.tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)[0]
@@ -182,6 +207,124 @@ I z dziecinną radością pociągnął za sznurek,
 By stary Dąbrowskiego usłyszeć mazurek. 
 """
 
-bertTranslator = BertTranslator()
 
-print(bertTranslator.translate(article_pl))
+
+print(translate_text_one_language(article_pl,"eng"))
+
+
+
+
+
+'''
+language_iso639_3 = {
+    'ar_AR': 'ara',
+    'cs_CZ': 'ces',
+    'de_DE': 'deu',
+    'en_XX': 'eng',
+    'es_XX': 'spa',
+    'et_EE': 'est',
+    'fi_FI': 'fin',
+    'fr_XX': 'fra',
+    'gu_IN': 'guj',
+    'hi_IN': 'hin',
+    'it_IT': 'ita',
+    'ja_XX': 'jpn',
+    'kk_KZ': 'kaz',
+    'ko_KR': 'kor',
+    'lt_LT': 'lit',
+    'lv_LV': 'lav',
+    'my_MM': 'mya',
+    'ne_NP': 'nep',
+    'nl_XX': 'nld',
+    'ro_RO': 'ron',
+    'ru_RU': 'rus',
+    'si_LK': 'sin',
+    'tr_TR': 'tur',
+    'vi_VN': 'vie',
+    'zh_CN': 'zho',
+    'af_ZA': 'afr',
+    'az_AZ': 'aze',
+    'bn_IN': 'ben',
+    'fa_IR': 'fas',
+    'he_IL': 'heb',
+    'hr_HR': 'hrv',
+    'id_ID': 'ind',
+    'ka_GE': 'kat',
+    'km_KH': 'khm',
+    'mk_MK': 'mkd',
+    'ml_IN': 'mal',
+    'mn_MN': 'mon',
+    'mr_IN': 'mar',
+    'pl_PL': 'pol',
+    'ps_AF': 'pus',
+    'pt_XX': 'por',
+    'sv_SE': 'swe',
+    'sw_KE': 'swa',
+    'ta_IN': 'tam',
+    'te_IN': 'tel',
+    'th_TH': 'tha',
+    'tl_XX': 'tgl',
+    'uk_UA': 'ukr',
+    'ur_PK': 'urd',
+    'xh_ZA': 'xho',
+    'gl_ES': 'glg',
+    'sl_SI': 'slv',
+}
+'''
+
+'''
+iso639_3_to_language = {
+    'ara': 'ar_AR',
+    'ces': 'cs_CZ',
+    'deu': 'de_DE',
+    'eng': 'en_XX',
+    'spa': 'es_XX',
+    'est': 'et_EE',
+    'fin': 'fi_FI',
+    'fra': 'fr_XX',
+    'guj': 'gu_IN',
+    'hin': 'hi_IN',
+    'ita': 'it_IT',
+    'jpn': 'ja_XX',
+    'kaz': 'kk_KZ',
+    'kor': 'ko_KR',
+    'lit': 'lt_LT',
+    'lav': 'lv_LV',
+    'mya': 'my_MM',
+    'nep': 'ne_NP',
+    'nld': 'nl_XX',
+    'ron': 'ro_RO',
+    'rus': 'ru_RU',
+    'sin': 'si_LK',
+    'tur': 'tr_TR',
+    'vie': 'vi_VN',
+    'zho': 'zh_CN',
+    'afr': 'af_ZA',
+    'aze': 'az_AZ',
+    'ben': 'bn_IN',
+    'fas': 'fa_IR',
+    'heb': 'he_IL',
+    'hrv': 'hr_HR',
+    'ind': 'id_ID',
+    'kat': 'ka_GE',
+    'khm': 'km_KH',
+    'mkd': 'mk_MK',
+    'mal': 'ml_IN',
+    'mon': 'mn_MN',
+    'mar': 'mr_IN',
+    'pol': 'pl_PL',
+    'pus': 'ps_AF',
+    'por': 'pt_XX',
+    'swe': 'sv_SE',
+    'swa': 'sw_KE',
+    'tam': 'ta_IN',
+    'tel': 'te_IN',
+    'tha': 'th_TH',
+    'tgl': 'tl_XX',
+    'ukr': 'uk_UA',
+    'urd': 'ur_PK',
+    'xho': 'xh_ZA',
+    'glg': 'gl_ES',
+    'slv': 'sl_SI',
+}
+'''

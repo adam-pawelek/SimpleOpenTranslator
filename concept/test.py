@@ -7,7 +7,9 @@ confidence_values = detector.compute_language_confidence_values("To obtain the c
 
 
 print(confidence_values[0].value)
-print(confidence_values[0].language)
+print(confidence_values[0].language.iso_code_639_3.name)
+
+print(type(confidence_values[0].language.name))
 
 
 
