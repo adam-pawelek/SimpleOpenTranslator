@@ -2,7 +2,7 @@ import re
 
 import torch
 from transformers import MBartForConditionalGeneration, MBart50TokenizerFast
-
+import threading
 from utils.simple_language_detector import one_language_auto_detect
 
 from utils.const_var import iso639_3_to_bert_language, languages_available_in_bert_iso639_3_set
@@ -87,6 +87,7 @@ class BertTranslator(Translator):
         self.model = MBartForConditionalGeneration.from_pretrained("facebook/mbart-large-50-many-to-many-mmt").to(self.device)
         self.max_length = self.model.config.max_length
         self.tokenizer = MBart50TokenizerFast.from_pretrained("facebook/mbart-large-50-many-to-many-mmt")
+        self.translator_tokenizer_lock = threading.Lock()
 
     @classmethod
     def check_if_contain_language(self, lang: str) -> bool:  #ISO 639-3
@@ -102,17 +103,17 @@ class BertTranslator(Translator):
         if src_lang is None:
             src_lang, confidence_level = one_language_auto_detect(text)
             src_lang = src_lang.iso_code_639_3.name.lower()
-
-        src_lang = self.change_iso_639_3_to_bert_format(src_lang)
-        to_lang = self.change_iso_639_3_to_bert_format(to_lang)
-        text_chunks = self.split_text_to_chunks(text)
-        print(text_chunks)
-        translated_list = []
-        for chunk in text_chunks:
-            translated_tex = self.translate_chunk_of_text(chunk, to_lang, src_lang)
-            print(chunk)
-            print(translated_tex)
-            translated_list.append(translated_tex)
+        with self.translator_tokenizer_lock:
+            src_lang = self.change_iso_639_3_to_bert_format(src_lang)
+            to_lang = self.change_iso_639_3_to_bert_format(to_lang)
+            text_chunks = self.split_text_to_chunks(text)
+            print(text_chunks)
+            translated_list = []
+            for chunk in text_chunks:
+                translated_tex = self.translate_chunk_of_text(chunk, to_lang, src_lang)
+                print(chunk)
+                print(translated_tex)
+                translated_list.append(translated_tex)
 
         print(translated_list)
         print(len(translated_list))
